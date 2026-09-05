@@ -5,50 +5,36 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: { origin: "*" }
+});
 
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'public'))); // Or current dir if index.html is in root
 
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`Family member connected: ${socket.id}`);
 
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
-        console.log(`User ${socket.id} joined room: ${roomId}`);
+        console.log(`User joined room: ${roomId}`);
 
-        // Get all other users currently in the room
         const room = io.adapter.rooms.get(roomId);
         const usersInRoom = room ? Array.from(room).filter(id => id !== socket.id) : [];
-        
-        // Send existing users list to the newly joined user
         socket.emit('existing-users', usersInRoom);
     });
 
-    // Relay WebRTC Offers
     socket.on('offer', (data) => {
-        socket.to(data.target).emit('offer', {
-            offer: data.offer,
-            sender: socket.id
-        });
+        socket.to(data.target).emit('offer', { offer: data.offer, sender: socket.id });
     });
 
-    // Relay WebRTC Answers
     socket.on('answer', (data) => {
-        socket.to(data.target).emit('answer', {
-            answer: data.answer,
-            sender: socket.id
-        });
+        socket.to(data.target).emit('answer', { answer: data.answer, sender: socket.id });
     });
 
-    // Relay ICE Candidates
     socket.on('ice-candidate', (data) => {
-        socket.to(data.target).emit('ice-candidate', {
-            candidate: data.candidate,
-            sender: socket.id
-        });
+        socket.to(data.target).emit('ice-candidate', { candidate: data.candidate, sender: socket.id });
     });
 
-    // Interactive Features: Buzz, Likes, and Text Chat
     socket.on('buzz-user', (targetId) => {
         socket.to(targetId).emit('buzzed', { sender: socket.id });
     });
@@ -69,5 +55,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Signaling server running live at http://localhost:${PORT}`);
+    console.log(`Family server running on port ${PORT}`);
 });
